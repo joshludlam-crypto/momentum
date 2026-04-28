@@ -1,4 +1,254 @@
-import { useState, useEffect, useRef } from 'react';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: monospace; background: #0f0f1a; color: #fff; height: 100vh; display: flex; flex-direction: column; }
+  #tabs { display: flex; overflow-x: auto; background: #0a0a14; border-bottom: 1px solid rgba(255,255,255,0.1); padding: 0 4px; flex-shrink: 0; }
+  .tab { padding: 10px 13px; border: none; cursor: pointer; font-size: 11px; white-space: nowrap; background: transparent; color: rgba(255,255,255,0.4); border-bottom: 2px solid transparent; font-family: monospace; }
+  .tab.active { background: #1a1030; color: #fff; border-bottom: 2px solid #7C9EE8; }
+  #content { flex: 1; position: relative; overflow: hidden; }
+  #copy-btn { position: absolute; top: 10px; right: 10px; z-index: 10; background: rgba(124,158,232,0.2); border: 1px solid rgba(124,158,232,0.4); border-radius: 8px; padding: 6px 14px; color: #fff; cursor: pointer; font-size: 12px; font-weight: 600; font-family: monospace; }
+  #copy-btn.copied { background: rgba(107,203,119,0.3); border-color: #6BCB77; }
+  pre { margin: 0; padding: 16px; overflow: auto; font-size: 11.5px; line-height: 1.65; height: calc(100vh - 44px); white-space: pre; }
+</style>
+</head>
+<body>
+<div id="tabs"></div>
+<div id="content">
+  <button id="copy-btn" onclick="copyCode()">Copy</button>
+  <pre id="code-display"></pre>
+</div>
+
+<script>
+const files = [
+  { name: "📁 Structure", bg: "#0f0f1a", code: `momentum-timer/
+├── public/
+│   ├── manifest.json
+│   ├── sw.js
+│   └── icons/
+│       ├── icon-192.png  ← generate at favicon.io
+│       └── icon-512.png  ← generate at favicon.io
+├── src/
+│   ├── App.jsx
+│   ├── main.jsx
+│   └── index.css
+├── index.html
+├── vite.config.js
+└── package.json
+
+──────────────────────────────────────────
+DEPLOY STEPS
+──────────────────────────────────────────
+1. Install Node.js from nodejs.org
+2. Create folder momentum-timer, add all files below
+3. Generate icons at favicon.io → save as
+   public/icons/icon-192.png + icon-512.png
+4. In terminal:  npm install
+5. Test locally: npm run dev  →  localhost:5173
+6. Deploy:       npx vercel
+   (sign up free at vercel.com first)
+7. Visit your live URL on phone
+   → Share → Add to Home Screen` },
+
+  { name: "package.json", bg: "#0d1a0d", code: `{
+  "name": "momentum-timer",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.0.0",
+    "vite": "^4.4.0",
+    "vite-plugin-pwa": "^0.16.0"
+  }
+}` },
+
+  { name: "vite.config.js", bg: "#0d0d1a", code: `import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { VitePWA } from 'vite-plugin-pwa';
+
+export default defineConfig({
+  plugins: [
+    react(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeAssets: ['icons/*.png'],
+      manifest: {
+        name: 'Momentum Timer',
+        short_name: 'Momentum',
+        description: 'ADHD focus timer with momentum-building stages',
+        theme_color: '#0f0f1a',
+        background_color: '#0f0f1a',
+        display: 'standalone',
+        orientation: 'portrait',
+        icons: [
+          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' }
+        ]
+      },
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,png,svg}'],
+        runtimeCaching: []
+      }
+    })
+  ]
+});` },
+
+  { name: "index.html", bg: "#1a0d0d", code: `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0,
+          maximum-scale=1.0, user-scalable=no" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style"
+          content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Momentum" />
+    <meta name="theme-color" content="#0f0f1a" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <title>Momentum Timer</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>` },
+
+  { name: "src/main.jsx", bg: "#0d1520", code: `import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App.jsx';
+import './index.css';
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <React.StrictMode><App /></React.StrictMode>
+);
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(console.error);
+  });
+}` },
+
+  { name: "src/index.css", bg: "#0d1a1a", code: `*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body, #root { height: 100%; width: 100%; }
+body {
+  background: linear-gradient(135deg, #0f0f1a 0%, #1a1030 50%, #0d1a2a 100%);
+  min-height: 100vh;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  color: #fff;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+@keyframes pulse-ring {
+  0%   { transform: scale(1);   opacity: 0.6; }
+  100% { transform: scale(1.4); opacity: 0;   }
+}
+@keyframes bounce-in {
+  0%   { transform: scale(0.5); opacity: 0; }
+  70%  { transform: scale(1.1); }
+  100% { transform: scale(1);   opacity: 1; }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0);  }
+  50%       { transform: translateY(-8px); }
+}
+@keyframes particle-fall {
+  to { transform: translate(var(--dx), var(--dy)); opacity: 0; }
+}
+.btn-primary {
+  background: linear-gradient(135deg, #7C9EE8, #C77DFF);
+  border: none; border-radius: 50px; padding: 16px 40px;
+  font-size: 18px; font-weight: 700; color: #fff; cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+  box-shadow: 0 4px 20px rgba(124,158,232,0.4); width: 100%;
+}
+.btn-primary:active { transform: scale(0.97); }
+.btn-stop {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 50px; padding: 10px 28px;
+  font-size: 14px; color: rgba(255,255,255,0.5);
+  cursor: pointer; width: 100%; margin-top: 10px;
+}
+.toggle-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 0; border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+.toggle {
+  width: 48px; height: 26px; border-radius: 13px;
+  position: relative; cursor: pointer; transition: background 0.2s; flex-shrink: 0;
+}
+.toggle.on  { background: linear-gradient(135deg, #7C9EE8, #C77DFF); }
+.toggle.off { background: rgba(255,255,255,0.15); }
+.toggle-thumb {
+  position: absolute; top: 3px; width: 20px; height: 20px;
+  border-radius: 50%; background: #fff; transition: left 0.2s;
+}
+.toggle.on  .toggle-thumb { left: 25px; }
+.toggle.off .toggle-thumb { left: 3px;  }
+input[type=text] {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 12px; padding: 14px 20px;
+  font-size: 16px; color: #fff; width: 100%; outline: none;
+}
+input[type=text]::placeholder { color: rgba(255,255,255,0.3); }` },
+
+  { name: "public/sw.js", bg: "#1a100d", code: `const CACHE = 'momentum-v1';
+const ASSETS = ['/', '/index.html'];
+
+self.addEventListener('install', e => {
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', e => {
+  e.waitUntil(clients.claim());
+});
+
+self.addEventListener('fetch', e => {
+  e.respondWith(
+    caches.match(e.request).then(r => r || fetch(e.request))
+  );
+});
+
+// Triggered by postMessage from the app
+self.addEventListener('message', e => {
+  if (e.data?.type === 'STAGE_COMPLETE') {
+    const { title, body, vibrate } = e.data;
+    self.registration.showNotification(title, {
+      body,
+      icon:     '/icons/icon-192.png',
+      badge:    '/icons/icon-192.png',
+      tag:      'momentum-stage',
+      renotify: true,
+      vibrate:  vibrate ? [200, 100, 200, 100, 300] : undefined,
+      data:     { url: self.location.origin }
+    });
+  }
+});
+
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil(
+    clients.matchAll({ type: 'window' }).then(list => {
+      if (list.length) return list[0].focus();
+      return clients.openWindow('/');
+    })
+  );
+});` },
+
+  { name: "src/App.jsx", bg: "#0d1520", code: `import { useState, useEffect, useRef } from 'react';
 
 const STAGES = [
   { duration: 2*60,  label: 'Just Start',      emoji: '🌱', xp: 10,  color: '#7C9EE8', msg: "2 minutes! You showed up. That's everything." },
@@ -64,7 +314,7 @@ function Toggle({ on, onToggle, label, sub }) {
         <div style={{ fontWeight: 600, fontSize: 15 }}>{label}</div>
         {sub && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>{sub}</div>}
       </div>
-      <div className={`toggle ${on ? 'on' : 'off'}`} onClick={onToggle}>
+      <div className={\`toggle \${on ? 'on' : 'off'}\`} onClick={onToggle}>
         <div className="toggle-thumb" />
       </div>
     </div>
@@ -98,13 +348,10 @@ export default function App() {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.ready.then(r => { swRef.current = r; });
     }
-    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-      setNotifOK(true);
-    }
+    if (Notification.permission === 'granted') setNotifOK(true);
   }, []);
 
   async function askNotifPermission() {
-    if (typeof Notification === 'undefined') return false;
     const p = await Notification.requestPermission();
     setNotifOK(p === 'granted');
     return p === 'granted';
@@ -135,7 +382,7 @@ export default function App() {
             fireAlert('🏆 ONE FULL HOUR!', 'You are absolutely unstoppable.');
             setScreen('done');
           } else {
-            fireAlert(`${stage.emoji} Stage Complete!`, stage.msg);
+            fireAlert(\`\${stage.emoji} Stage Complete!\`, stage.msg);
             setScreen('checkin');
           }
           return 0;
@@ -207,7 +454,7 @@ export default function App() {
                        borderRadius:12, padding:'8px 14px',
                        color:'rgba(255,255,255,0.6)', cursor:'pointer', fontSize:18 }}>⚙️</button>
 
-      {/* HOME */}
+      {/* ── HOME ── */}
       {screen === 'home' && (
         <div style={{ textAlign:'center', maxWidth:440, width:'100%',
                       animation:'bounce-in 0.5s ease' }}>
@@ -244,7 +491,7 @@ export default function App() {
         </div>
       )}
 
-      {/* RUNNING */}
+      {/* ── RUNNING ── */}
       {screen === 'running' && (
         <div style={{ textAlign:'center', maxWidth:420, width:'100%' }}>
           <div style={{ display:'flex', justifyContent:'center', gap:6,
@@ -256,7 +503,7 @@ export default function App() {
                            : i === stageIdx ? stage.color : 'rgba(255,255,255,0.06)',
                 color: i === stageIdx ? '#fff'
                      : i < stageIdx ? 'rgba(124,158,232,0.9)' : 'rgba(255,255,255,0.3)',
-                border: i === stageIdx ? `1px solid ${stage.color}` : '1px solid transparent',
+                border: i === stageIdx ? \`1px solid \${stage.color}\` : '1px solid transparent',
               }}>
                 {i < stageIdx ? '✓' : s.emoji} {STAGE_MINS[i]}m
               </div>
@@ -265,7 +512,7 @@ export default function App() {
 
           <div style={{ position:'relative', display:'inline-block', marginBottom:20 }}>
             <div style={{ position:'absolute', inset:-8, borderRadius:'50%',
-                          border:`2px solid ${stage.color}`,
+                          border:\`2px solid \${stage.color}\`,
                           animation:'pulse-ring 2s ease-out infinite' }} />
             <svg width={220} height={220} viewBox="0 0 220 220">
               <circle cx={110} cy={110} r={90} fill="none"
@@ -310,7 +557,7 @@ export default function App() {
         </div>
       )}
 
-      {/* CHECK-IN */}
+      {/* ── CHECK-IN ── */}
       {screen === 'checkin' && (
         <div style={{ textAlign:'center', maxWidth:440, width:'100%',
                       animation:'bounce-in 0.4s ease' }}>
@@ -322,8 +569,8 @@ export default function App() {
             {stage.msg}
           </p>
           <div style={{ display:'inline-block',
-                        background:`${stage.color}22`,
-                        border:`1px solid ${stage.color}66`,
+                        background:\`\${stage.color}22\`,
+                        border:\`1px solid \${stage.color}66\`,
                         borderRadius:16, padding:'10px 24px',
                         marginBottom:28, fontSize:18, fontWeight:700 }}>
             +{stage.xp} XP ⭐
@@ -344,7 +591,7 @@ export default function App() {
         </div>
       )}
 
-      {/* DONE */}
+      {/* ── DONE ── */}
       {screen === 'done' && (
         <div style={{ textAlign:'center', maxWidth:460, width:'100%',
                       animation:'bounce-in 0.5s ease' }}>
@@ -387,7 +634,7 @@ export default function App() {
               {STAGES.map((s, i) => (
                 <div key={i} style={{
                   borderRadius:12, padding:'6px 12px', fontSize:12,
-                  background: i < stageIdx || bigWin ? `${s.color}33` : 'rgba(255,255,255,0.04)',
+                  background: i < stageIdx || bigWin ? \`\${s.color}33\` : 'rgba(255,255,255,0.04)',
                   color:      i < stageIdx || bigWin ? s.color : 'rgba(255,255,255,0.2)',
                 }}>
                   {i < stageIdx || bigWin ? '✓' : '○'} {s.emoji} +{i < stageIdx || bigWin ? s.xp : 0} XP
@@ -402,4 +649,35 @@ export default function App() {
       )}
     </div>
   );
+}` },
+];
+
+let active = 0;
+
+function render() {
+  const tabsEl = document.getElementById('tabs');
+  const codeEl = document.getElementById('code-display');
+  tabsEl.innerHTML = '';
+  files.forEach((f, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'tab' + (i === active ? ' active' : '');
+    btn.textContent = f.name;
+    btn.onclick = () => { active = i; render(); };
+    tabsEl.appendChild(btn);
+  });
+  codeEl.style.background = files[active].bg;
+  codeEl.textContent = files[active].code;
 }
+
+function copyCode() {
+  navigator.clipboard.writeText(files[active].code);
+  const btn = document.getElementById('copy-btn');
+  btn.textContent = '✓ Copied!';
+  btn.classList.add('copied');
+  setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+}
+
+render();
+</script>
+</body>
+</html>
